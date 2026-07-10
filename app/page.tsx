@@ -45,7 +45,7 @@ export default function Home() {
         style={{ animationDelay: "1000ms" }}
       >
         <a
-          href="https://x.com/_ojaven"
+          href="https://linkedin.com/company/ojaven"
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-muted underline-offset-4 transition-colors hover:text-foreground hover:underline"
