@@ -13,6 +13,9 @@ export default function WaitlistForm() {
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    if (status === "loading") return;
+
     setError("");
 
     if (!EMAIL_REGEX.test(email)) {
@@ -29,8 +32,12 @@ export default function WaitlistForm() {
         body: JSON.stringify({ email }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        throw new Error("Submission failed");
+        setStatus("error");
+        setError(data.error || "Something went wrong. Please try again.");
+        return;
       }
 
       setStatus("success");
@@ -53,7 +60,7 @@ export default function WaitlistForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex w-full max-w-sm flex-col gap-3 sm:flex-row sm:items-end sm:gap-4"
+      className="flex w-full max-w-sm flex-col gap-3 sm:flex-row sm:items-center sm:gap-3"
       noValidate
     >
       <div className="flex-1">
@@ -73,13 +80,13 @@ export default function WaitlistForm() {
           disabled={status === "loading"}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? "email-error" : undefined}
-          className="w-full border-0 border-b border-white/10 bg-transparent px-1 py-2 text-base text-foreground outline-none transition-colors placeholder:text-muted focus:border-accent disabled:opacity-50"
+          className="w-full border-0 border-b-2 border-white/10 bg-white/[0.03] px-1 py-3 text-base font-normal text-foreground outline-none transition-colors placeholder:text-[#A0A0A0] focus:border-accent disabled:opacity-50"
         />
       </div>
       <button
         type="submit"
         disabled={status === "loading"}
-        className="whitespace-nowrap border border-white/10 px-5 py-2 text-sm font-medium text-foreground transition-colors hover:border-white/30 disabled:opacity-50"
+        className="whitespace-nowrap rounded-md bg-accent px-7 py-3.5 text-sm font-semibold text-white outline-none transition-colors duration-200 ease-in-out hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:bg-accent-disabled disabled:hover:bg-accent-disabled"
       >
         {status === "loading" ? "Joining…" : "Join waitlist"}
       </button>

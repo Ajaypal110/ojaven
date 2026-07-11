@@ -12,6 +12,8 @@ const config: Config = {
         foreground: "#FFFFFF",
         muted: "#8C8C8C",
         accent: "#D97706",
+        "accent-hover": "#B45309",
+        "accent-disabled": "#92400E",
         border: "rgba(255,255,255,0.1)",
       },
       fontFamily: {

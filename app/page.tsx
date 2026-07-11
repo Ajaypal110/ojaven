@@ -22,11 +22,24 @@ export default function Home() {
           ojaven<span className="text-accent">.</span>
         </h1>
 
+        <div
+          className="animate-fade-in mt-8 mb-6 h-px w-10 bg-white/30"
+          style={{ animationDelay: "300ms" }}
+          aria-hidden="true"
+        />
+
         <p
-          className="animate-fade-in mt-6 max-w-md text-base text-muted sm:text-lg"
+          className="animate-fade-in max-w-md text-base text-muted sm:text-lg"
           style={{ animationDelay: "400ms" }}
         >
           The all-in-one platform for marketing agencies.
+        </p>
+
+        <p
+          className="animate-fade-in mt-2 text-base font-normal text-muted"
+          style={{ animationDelay: "450ms" }}
+        >
+          Kill the SaaS tax. One place. One price.
         </p>
 
         <div
@@ -41,7 +54,7 @@ export default function Home() {
       </main>
 
       <footer
-        className="animate-fade-in flex flex-col items-center gap-4 p-8 sm:flex-row sm:justify-between"
+        className="animate-fade-in flex flex-row items-center justify-between gap-4 p-8"
         style={{ animationDelay: "1000ms" }}
       >
         <a
@@ -50,7 +63,7 @@ export default function Home() {
           rel="noopener noreferrer"
           className="text-xs text-muted underline-offset-4 transition-colors hover:text-foreground hover:underline"
         >
-          Building in public. Follow →
+          Building in public →
         </a>
         <SocialLinks />
       </footer>
