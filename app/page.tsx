@@ -54,14 +54,14 @@ export default function Home() {
       </main>
 
       <footer
-        className="animate-fade-in flex flex-row items-center justify-between gap-4 p-8"
+        className="animate-fade-in flex flex-row items-center justify-between gap-3 p-8"
         style={{ animationDelay: "1000ms" }}
       >
         <a
           href="https://linkedin.com/company/ojaven"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-muted underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          className="whitespace-nowrap text-xs text-muted underline-offset-4 transition-colors hover:text-foreground hover:underline"
         >
           Building in public →
         </a>
