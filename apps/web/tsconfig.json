@@ -1,0 +1,34 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "noEmit": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "incremental": true,
+    "noUncheckedIndexedAccess": false,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@ojaven/db": ["../../packages/db/src/index.ts"],
+      "@ojaven/db/*": ["../../packages/db/src/*"],
+      "@ojaven/server": ["../../packages/server/src/index.ts"],
+      "@ojaven/server/*": ["../../packages/server/src/*"],
+      "@ojaven/shared": ["../../packages/shared/src/index.ts"],
+      "@ojaven/shared/*": ["../../packages/shared/src/*"],
+      "@ojaven/ui": ["../../packages/ui/src/index.ts"],
+      "@ojaven/ui/*": ["../../packages/ui/src/*"],
+      "@ojaven/emails": ["../../packages/emails/src/index.ts"],
+      "@ojaven/emails/*": ["../../packages/emails/src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

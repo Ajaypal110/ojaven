@@ -1,0 +1,11 @@
+{
+  "name": "@ojaven/server",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@ojaven/db": "workspace:*",
+    "@ojaven/shared": "workspace:*"
+  }
+}

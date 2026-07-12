@@ -1,5 +1,5 @@
-import WaitlistForm from "@/components/WaitlistForm";
-import SocialLinks from "@/components/SocialLinks";
+import WaitlistForm from "@/components/marketing/WaitlistForm";
+import SocialLinks from "@/components/marketing/SocialLinks";
 
 export default function Home() {
   return (

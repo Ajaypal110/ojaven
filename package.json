@@ -3,23 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "next": "14.2.35",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "dev": "pnpm --filter @ojaven/web dev",
+    "build": "pnpm --filter @ojaven/web build",
+    "start": "pnpm --filter @ojaven/web start",
+    "lint": "pnpm --filter @ojaven/web lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .gitignore"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.4",
+    "prettier": "^3.3.2",
     "typescript": "^5.5.2"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
