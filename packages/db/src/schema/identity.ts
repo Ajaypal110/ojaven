@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { id, softDelete, timestamps } from "./_helpers";
 import { invitationStatusEnum, subscriptionStatusEnum, teamMemberRoleEnum } from "./_enums";
 
@@ -107,6 +107,13 @@ export const teamMembers = pgTable(
     unique("team_members_agency_user_unique").on(table.agencyId, table.userId),
     index("team_members_agency_role_idx").on(table.agencyId, table.role),
     index("team_members_user_idx").on(table.userId),
+    // DB-enforced, not just application logic: at most one non-deleted
+    // 'owner' row per agency, ever. The Clerk webhook handler relies on
+    // this constraint failing (and retries as 'admin') to stay correct
+    // under a genuine race, rather than trusting a check-then-insert.
+    uniqueIndex("team_members_one_owner_per_agency")
+      .on(table.agencyId)
+      .where(sql`${table.role} = 'owner' AND ${table.deletedAt} IS NULL`),
   ]
 );
 
