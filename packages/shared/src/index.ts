@@ -1,2 +1,2 @@
-// Cross-cutting types, Zod schemas, constants, and the shared pino logger land here.
-export {};
+// Cross-cutting types, Zod schemas, and constants land here alongside the logger.
+export { logger } from "./logger";
