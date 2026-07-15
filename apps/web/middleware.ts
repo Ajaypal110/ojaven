@@ -1,8 +1,30 @@
+import { NextResponse } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isProtectedRoute = createRouteMatcher(["/dashboard(.*)", "/onboarding(.*)"]);
+const isSignUpRoute = createRouteMatcher(["/sign-up(.*)"]);
+
+/**
+ * Stealth-period guard, independent of Clerk's own dashboard "Restricted
+ * mode" toggle — defense-in-depth so a dashboard misconfiguration (or that
+ * toggle turning out to need a paid plan) doesn't silently reopen public
+ * sign-up. Default false (fail closed): only the literal string "true"
+ * enables it. Flip via ALLOW_PUBLIC_SIGNUP when the product actually
+ * launches — no code change needed at that point, just the env var.
+ */
+const allowPublicSignup = process.env.ALLOW_PUBLIC_SIGNUP === "true";
 
 export default clerkMiddleware(async (auth, req) => {
+  if (isSignUpRoute(req) && !allowPublicSignup) {
+    // A rewrite to an unmatched path (not a redirect, not a hand-built
+    // Response) so Next.js's own not-found flow renders — real 404 status,
+    // respects a custom not-found.tsx if one's ever added. The route
+    // should look like it doesn't exist, not like it exists-but-blocked.
+    const url = req.nextUrl.clone();
+    url.pathname = "/__stealth_404__";
+    return NextResponse.rewrite(url);
+  }
+
   if (isProtectedRoute(req)) {
     await auth.protect();
   }
