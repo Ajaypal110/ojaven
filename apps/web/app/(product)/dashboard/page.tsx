@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
 
 /**
@@ -12,6 +13,9 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: "2rem", fontFamily: "monospace" }}>
+      <p>
+        <Link href="/clients">Clients &rarr;</Link>
+      </p>
       <h1>tRPC round-trip check</h1>
       {ping.isLoading && <p>Loading…</p>}
       {ping.error && <p>Error: {ping.error.message}</p>}

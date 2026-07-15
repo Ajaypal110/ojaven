@@ -23,7 +23,10 @@
     "@trpc/server": "^11.0.0",
     "superjson": "^2.2.1",
     "@clerk/nextjs": "^6.9.6",
-    "drizzle-orm": "^0.36.4"
+    "drizzle-orm": "^0.36.4",
+    "react-hook-form": "^7.53.0",
+    "@hookform/resolvers": "^3.9.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
