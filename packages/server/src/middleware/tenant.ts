@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
-import { agencies } from "@ojaven/db";
+import { agencies, agencySettings } from "@ojaven/db";
 import type { Context } from "../context";
 import { middleware } from "../trpc";
 import { AgencySyncPendingError } from "../errors";
@@ -46,6 +46,37 @@ async function provisionAgency(db: Context["db"], clerkOrgId: string) {
 }
 
 /**
+ * Defaults only, no logic — mirrors the webhook's bundled agency_settings
+ * insert (agency_settings.subdomain is NOT NULL with no default, so every
+ * agency needs one from the moment it exists). Runs regardless of whether
+ * `agency` was just JIT-created or already existed, so it also backfills
+ * any agency created before this fix existed (e.g. one JIT-created by the
+ * previous version of provisionAgency, which didn't do this).
+ *
+ * Best-effort: nothing currently reads agency_settings (no settings page
+ * exists yet), so a failure here logs a warning rather than failing the
+ * request — unlike users/agencies, which are hard FK dependencies for
+ * things like a client insert.
+ */
+async function ensureAgencySettings(db: Context["db"], clerkOrgId: string, agencyId: string) {
+  const [existing] = await db
+    .select({ id: agencySettings.id })
+    .from(agencySettings)
+    .where(eq(agencySettings.agencyId, agencyId))
+    .limit(1);
+
+  if (existing) return;
+
+  const client = await clerkClient();
+  const org = await client.organizations.getOrganization({ organizationId: clerkOrgId });
+
+  await db
+    .insert(agencySettings)
+    .values({ agencyId, subdomain: org.slug ?? clerkOrgId })
+    .onConflictDoNothing({ target: agencySettings.agencyId });
+}
+
+/**
  * The ONLY place multi-tenant enforcement happens — there's no DB-level
  * RLS with Neon, so every agency-scoped query/mutation MUST go through
  * agencyProcedure (which chains this after requireAuth) rather than
@@ -85,6 +116,12 @@ export const requireAgency = middleware(async ({ ctx, next }) => {
     // existing retry UI still applies rather than a raw crash.
     const cause = new AgencySyncPendingError(ctx.clerkOrgId);
     throw new TRPCError({ code: "NOT_FOUND", message: cause.message, cause });
+  }
+
+  try {
+    await ensureAgencySettings(ctx.db, ctx.clerkOrgId, agency.id);
+  } catch (err) {
+    ctx.logger.warn({ err, agencyId: agency.id }, "Failed to ensure agency_settings");
   }
 
   return next({ ctx: { ...ctx, agencyId: agency.id } });
