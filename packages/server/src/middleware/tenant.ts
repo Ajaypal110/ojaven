@@ -89,21 +89,22 @@ export const requireAgency = middleware(async ({ ctx, next }) => {
       message: "No active organization selected.",
     });
   }
+  const clerkOrgId = ctx.clerkOrgId; // narrowed to string for downstream ctx
 
   const [existing] = await ctx.db
     .select({ id: agencies.id })
     .from(agencies)
-    .where(eq(agencies.clerkOrgId, ctx.clerkOrgId))
+    .where(eq(agencies.clerkOrgId, clerkOrgId))
     .limit(1);
 
   let agency = existing;
 
   if (!agency) {
     try {
-      agency = await provisionAgency(ctx.db, ctx.clerkOrgId);
+      agency = await provisionAgency(ctx.db, clerkOrgId);
     } catch (err) {
       ctx.logger.error(
-        { err, clerkOrgId: ctx.clerkOrgId },
+        { err, clerkOrgId },
         "Failed to JIT-provision agency"
       );
     }
@@ -114,15 +115,17 @@ export const requireAgency = middleware(async ({ ctx, next }) => {
     // normal "webhook hasn't run" case) — most likely a transient Clerk
     // API failure. Reuses AgencySyncPendingError so the onboarding page's
     // existing retry UI still applies rather than a raw crash.
-    const cause = new AgencySyncPendingError(ctx.clerkOrgId);
+    const cause = new AgencySyncPendingError(clerkOrgId);
     throw new TRPCError({ code: "NOT_FOUND", message: cause.message, cause });
   }
 
   try {
-    await ensureAgencySettings(ctx.db, ctx.clerkOrgId, agency.id);
+    await ensureAgencySettings(ctx.db, clerkOrgId, agency.id);
   } catch (err) {
     ctx.logger.warn({ err, agencyId: agency.id }, "Failed to ensure agency_settings");
   }
 
-  return next({ ctx: { ...ctx, agencyId: agency.id } });
+  // Partial override (no ...ctx spread) — preserves requireAuth's userId
+  // narrowing; see the matching comment in middleware/auth.ts.
+  return next({ ctx: { agencyId: agency.id, clerkOrgId } });
 });

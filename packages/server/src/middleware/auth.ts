@@ -67,7 +67,7 @@ export const requireAuth = middleware(async ({ ctx, next }) => {
     .where(eq(users.id, ctx.userId))
     .limit(1);
 
-  let user = existing;
+  let user: { id: string } | undefined = existing;
 
   if (!user) {
     try {
@@ -87,5 +87,8 @@ export const requireAuth = middleware(async ({ ctx, next }) => {
     });
   }
 
-  return next({ ctx: { ...ctx, userId: ctx.userId } });
+  // Partial override, no ...ctx spread: tRPC shallow-merges ctx overrides,
+  // and spreading the statically-typed base ctx here would clobber this
+  // narrowing for downstream middlewares in the chain.
+  return next({ ctx: { userId: ctx.userId } });
 });

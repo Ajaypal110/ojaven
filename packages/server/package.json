@@ -5,7 +5,8 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ojaven/db": "workspace:*",
@@ -17,5 +18,8 @@
     "drizzle-orm": "^0.36.4",
     "superjson": "^2.2.1",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8"
   }
 }

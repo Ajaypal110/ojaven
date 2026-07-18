@@ -1,18 +1,9 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import type { NextRequest } from "next/server";
-import { and, eq } from "drizzle-orm";
-import {
-  db,
-  agencies,
-  agencySettings,
-  invitations,
-  teamMembers,
-  teamMemberRoleEnum,
-  users,
-} from "@ojaven/db";
+import { eq } from "drizzle-orm";
+import { db, agencies, agencySettings, teamMembers, users } from "@ojaven/db";
+import { ensureMembership } from "@ojaven/server";
 import { logger } from "@ojaven/shared";
-
-type TeamMemberRole = (typeof teamMemberRoleEnum.enumValues)[number];
 
 export async function POST(req: NextRequest) {
   let evt;
@@ -158,6 +149,13 @@ async function softDeleteMembership(clerkMembershipId: string) {
     .where(eq(teamMembers.clerkMembershipId, clerkMembershipId));
 }
 
+/**
+ * Membership sync now delegates to the shared, advisory-lock-protected
+ * service (packages/server/src/services/teamMembership.ts) — the same
+ * function team.ensureMembership calls, so the webhook and the explicit
+ * bootstrap path can't drift. Role resolution (pending invitation ->
+ * first-member-owner -> Clerk-role fallback) and race handling live there.
+ */
 async function syncMembershipCreated(params: {
   clerkMembershipId: string;
   clerkOrgId: string;
@@ -179,99 +177,10 @@ async function syncMembershipCreated(params: {
     );
   }
 
-  const role = await resolveRole(agency.id, params.clerkUserId, params.clerkRole);
-
-  await insertMembership({
+  await ensureMembership({
     agencyId: agency.id,
     userId: params.clerkUserId,
-    role,
+    clerkOrgRole: params.clerkRole,
     clerkMembershipId: params.clerkMembershipId,
   });
-}
-
-/**
- * Role resolution order:
- * 1. A pending invitation from our own `invitations` table (agencyId +
- *    email match) — the only place manager/operator ever comes from,
- *    since Clerk's own role is just a binary org:admin/org:member split.
- * 2. No existing team_members row for this agency yet → this is the org
- *    creator → 'owner'.
- * 3. Otherwise, map Clerk's binary role as a fallback default (someone
- *    added directly via Clerk's dashboard, bypassing our invite flow).
- */
-async function resolveRole(
-  agencyId: string,
-  clerkUserId: string,
-  clerkRole: string
-): Promise<TeamMemberRole> {
-  const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, clerkUserId)).limit(1);
-
-  if (user) {
-    const [invitation] = await db
-      .select({ id: invitations.id, role: invitations.role })
-      .from(invitations)
-      .where(
-        and(
-          eq(invitations.agencyId, agencyId),
-          eq(invitations.email, user.email),
-          eq(invitations.status, "pending")
-        )
-      )
-      .limit(1);
-
-    if (invitation) {
-      await db
-        .update(invitations)
-        .set({ status: "accepted", acceptedAt: new Date() })
-        .where(eq(invitations.id, invitation.id));
-      return invitation.role;
-    }
-  }
-
-  const [existingMember] = await db
-    .select({ id: teamMembers.id })
-    .from(teamMembers)
-    .where(eq(teamMembers.agencyId, agencyId))
-    .limit(1);
-
-  if (!existingMember) return "owner";
-
-  return clerkRole === "org:admin" ? "admin" : "operator";
-}
-
-async function insertMembership(params: {
-  agencyId: string;
-  userId: string;
-  role: TeamMemberRole;
-  clerkMembershipId: string;
-}) {
-  try {
-    await db
-      .insert(teamMembers)
-      .values(params)
-      .onConflictDoUpdate({
-        target: teamMembers.clerkMembershipId,
-        set: { role: params.role, deletedAt: null, updatedAt: new Date() },
-      });
-  } catch (err) {
-    // Unique-owner race: someone else became owner between resolveRole()'s
-    // check and this insert (see the team_members_one_owner_per_agency
-    // partial index in packages/db). Retry once as admin.
-    if (params.role === "owner" && isUniqueViolation(err)) {
-      logger.warn({ agencyId: params.agencyId }, "clerk webhook: owner race detected, retrying as admin");
-      await db
-        .insert(teamMembers)
-        .values({ ...params, role: "admin" })
-        .onConflictDoUpdate({
-          target: teamMembers.clerkMembershipId,
-          set: { role: "admin", deletedAt: null, updatedAt: new Date() },
-        });
-      return;
-    }
-    throw err;
-  }
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return Boolean(err && typeof err === "object" && "code" in err && (err as { code: string }).code === "23505");
 }

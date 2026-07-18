@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { id, softDelete, timestamps } from "./_helpers";
 import { invitationStatusEnum, subscriptionStatusEnum, teamMemberRoleEnum } from "./_enums";
 
@@ -39,6 +39,18 @@ export const agencies = pgTable("agencies", {
   ...id,
   clerkOrgId: text("clerk_org_id").notNull().unique(),
   name: text("name").notNull(),
+  // Ownership-recovery state. Agency-level (not columns on an owner's
+  // team_members row) because multi-owner is possible: recovery is about
+  // "is this agency's ownership contestable" — a property of the agency,
+  // checked against ALL owners' Clerk activity — not about any one person.
+  // One pending request at a time; null requestedAt = no pending request.
+  ownershipRecoveryRequestedAt: timestamp("ownership_recovery_requested_at", {
+    withTimezone: true,
+  }),
+  ownershipRecoveryRequestedById: text("ownership_recovery_requested_by_id").references(
+    () => users.id,
+    { onDelete: "set null" }
+  ),
   ...timestamps,
   ...softDelete,
 });
@@ -107,13 +119,13 @@ export const teamMembers = pgTable(
     unique("team_members_agency_user_unique").on(table.agencyId, table.userId),
     index("team_members_agency_role_idx").on(table.agencyId, table.role),
     index("team_members_user_idx").on(table.userId),
-    // DB-enforced, not just application logic: at most one non-deleted
-    // 'owner' row per agency, ever. The Clerk webhook handler relies on
-    // this constraint failing (and retries as 'admin') to stay correct
-    // under a genuine race, rather than trusting a check-then-insert.
-    uniqueIndex("team_members_one_owner_per_agency")
-      .on(table.agencyId)
-      .where(sql`${table.role} = 'owner' AND ${table.deletedAt} IS NULL`),
+    // NOTE: no at-most-one-owner constraint — multi-owner is possible
+    // (opt-in via team.promoteToCoOwner; single owner stays the default
+    // bootstrap outcome). The invariants that matter are enforced in
+    // packages/server/src/services/: "at least one owner" as a count
+    // check before demotions/removals, and first-member-becomes-owner
+    // race-safety via a pg advisory lock (the old partial unique index
+    // used to provide that for free; dropping it moved the job there).
   ]
 );
 

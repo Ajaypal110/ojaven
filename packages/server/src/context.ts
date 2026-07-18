@@ -10,12 +10,20 @@ import { logger } from "@ojaven/shared";
  * uniformly as "no session" — procedures decide what to do about that,
  * this function's job is just to never crash context creation.
  */
-async function resolveSession(): Promise<{ userId: string | null; clerkOrgId: string | null }> {
+async function resolveSession(): Promise<{
+  userId: string | null;
+  clerkOrgId: string | null;
+  clerkOrgRole: string | null;
+}> {
   try {
     const session = await auth();
-    return { userId: session.userId, clerkOrgId: session.orgId ?? null };
+    return {
+      userId: session.userId,
+      clerkOrgId: session.orgId ?? null,
+      clerkOrgRole: session.orgRole ?? null,
+    };
   } catch {
-    return { userId: null, clerkOrgId: null };
+    return { userId: null, clerkOrgId: null, clerkOrgRole: null };
   }
 }
 
@@ -27,6 +35,7 @@ export async function createContext() {
     logger,
     userId: session.userId,
     clerkOrgId: session.clerkOrgId,
+    clerkOrgRole: session.clerkOrgRole,
   };
 }
 

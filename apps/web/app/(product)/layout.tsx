@@ -1,5 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import TrpcProvider from "@/components/providers/TrpcProvider";
+import EnsureMembership from "@/components/providers/EnsureMembership";
 
 /**
  * Scoped to (product) only, not the root layout — the marketing pages
@@ -8,7 +9,10 @@ import TrpcProvider from "@/components/providers/TrpcProvider";
 export default function ProductLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider>
-      <TrpcProvider>{children}</TrpcProvider>
+      <TrpcProvider>
+        <EnsureMembership />
+        {children}
+      </TrpcProvider>
     </ClerkProvider>
   );
 }
