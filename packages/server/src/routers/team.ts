@@ -23,7 +23,12 @@ import {
 import { liveClerkGateway } from "../services/liveClerkGateway";
 
 export const teamRouter = router({
-  list: teamProcedure.query(({ ctx }) => listMembers(ctx.agencyId)),
+  /** Roster + the caller's own membership, so the UI can gate controls per the role matrix. */
+  list: teamProcedure.query(async ({ ctx }) => ({
+    callerMemberId: ctx.teamMember.id,
+    callerRole: ctx.teamMember.role,
+    members: await listMembers(ctx.agencyId),
+  })),
 
   /**
    * The explicit bootstrap path — agencyProcedure, not teamProcedure

@@ -15,6 +15,8 @@ export default function DashboardPage() {
     <div style={{ padding: "2rem", fontFamily: "monospace" }}>
       <p>
         <Link href="/clients">Clients &rarr;</Link>
+        {"  "}
+        <Link href="/team">Team &rarr;</Link>
       </p>
       <h1>tRPC round-trip check</h1>
       {ping.isLoading && <p>Loading…</p>}

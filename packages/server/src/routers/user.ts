@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { agencies, teamMembers, users } from "@ojaven/db";
 import { router } from "../trpc";
 import { protectedProcedure } from "../procedures";
@@ -21,7 +21,7 @@ export const userRouter = router({
       })
       .from(teamMembers)
       .innerJoin(agencies, eq(agencies.id, teamMembers.agencyId))
-      .where(eq(teamMembers.userId, ctx.userId));
+      .where(and(eq(teamMembers.userId, ctx.userId), isNull(teamMembers.deletedAt)));
 
     return { ...user, memberships };
   }),
