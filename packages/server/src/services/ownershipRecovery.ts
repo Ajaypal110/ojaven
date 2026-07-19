@@ -4,6 +4,7 @@ import { agencies, db, notifications, teamMembers, users } from "@ojaven/db";
 import { txDb, type Tx } from "@ojaven/db/transactionClient";
 import type { ClerkGateway } from "./clerkGateway";
 import { activeOwners } from "./teamMembership";
+import { lockAgency } from "./agencyLock";
 import { sql } from "drizzle-orm";
 
 export const OWNER_INACTIVITY_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000;
@@ -41,9 +42,6 @@ export const RECOVERY_GRACE_PERIOD_MS = 14 * 24 * 60 * 60 * 1000;
  * precondition and 14-day grace ARE the safeguard.
  */
 
-async function lockAgency(tx: Tx, agencyId: string) {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${agencyId}))`);
-}
 
 async function requireAdminActor(tx: Tx, agencyId: string, userId: string) {
   const [actor] = await tx

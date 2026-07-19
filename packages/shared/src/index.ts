@@ -2,3 +2,5 @@
 export { logger } from "./logger";
 export * from "./validation/client";
 export * from "./validation/team";
+export * from "./validation/pipeline";
+export * from "./validation/deal";

@@ -3,22 +3,14 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db, invitations, teamMembers, users, teamMemberRoleEnum } from "@ojaven/db";
 import { txDb, type Tx } from "@ojaven/db/transactionClient";
 import type { ClerkGateway } from "./clerkGateway";
+import { lockAgency } from "./agencyLock";
 
 export type TeamMemberRole = (typeof teamMemberRoleEnum.enumValues)[number];
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/**
- * Serializes all membership/ownership mutations per agency. This replaces
- * the race-safety the old one-owner partial unique index provided for
- * free: without it, two concurrent first-joins of a brand-new agency could
- * both see "zero members" and both insert themselves as owner. Advisory
- * xact locks release automatically at commit/rollback. hashtext collisions
- * across agencies just serialize two unrelated agencies briefly — harmless.
- */
-async function lockAgency(tx: Tx, agencyId: string) {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${agencyId}))`);
-}
+// Per-agency serialization (replaces the race-safety the old one-owner
+// partial unique index provided for free) — shared impl in agencyLock.ts.
 
 async function activeMemberByUser(tx: Tx, agencyId: string, userId: string) {
   const [row] = await tx
