@@ -1,9 +1,22 @@
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import ws from "ws";
 import * as schema from "./schema";
 
-neonConfig.webSocketConstructor = ws;
+// Node's native WebSocket (stable since Node 22; local dev is 22.x, Vercel
+// runs 24.x). Deliberately NOT the `ws` package: webpack-bundled `ws`
+// breaks Neon's Pool inside the Next runtime — first as "Connection
+// terminated unexpectedly", then (with attempted externalization, which
+// transpilePackages overrides for imports reaching through @ojaven/db) as
+// "bufferUtil.mask is not a function". Native WebSocket has no package to
+// bundle, so there is nothing for the bundler to get wrong. Verified via
+// the health.pingTx probe, which exists precisely because the vitest suite
+// runs under plain Node and cannot catch bundler-induced breakage.
+if (typeof WebSocket === "undefined") {
+  throw new Error(
+    "@ojaven/db transactionClient requires a runtime with native WebSocket (Node >= 22)."
+  );
+}
+neonConfig.webSocketConstructor = WebSocket;
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set.");

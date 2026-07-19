@@ -14,7 +14,14 @@ import { trpc } from "@/lib/trpc/client";
  */
 export default function EnsureMembership() {
   const { orgId, isLoaded } = useAuth();
-  const { mutate } = trpc.team.ensureMembership.useMutation();
+  const utils = trpc.useUtils();
+  const { mutate } = trpc.team.ensureMembership.useMutation({
+    // Queries mounted alongside this effect (team.list, user.me) race the
+    // bootstrap and can error with "not a member yet" before the row
+    // exists — refetch everything once provisioning lands so a first
+    // visit self-heals instead of showing a stale FORBIDDEN until reload.
+    onSuccess: () => utils.invalidate(),
+  });
   const lastOrgId = useRef<string | null>(null);
 
   useEffect(() => {
