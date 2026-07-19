@@ -45,6 +45,17 @@ async function seedPipelineScene() {
   return { agency, ownerUser, client: client!, pipeline, stages: withStages!.stages };
 }
 
+describe("listPipelines empty state", () => {
+  it("returns an empty array (not an error) for an agency with zero pipelines", async () => {
+    // Backs the operator empty-state cell: the non-privileged path renders
+    // a friendly message off `[]` — this guarantees the service side of
+    // that path can never be an error or undefined.
+    const agency = await seedAgency();
+    agencyIds.push(agency.id);
+    expect(await listPipelines(agency.id)).toEqual([]);
+  });
+});
+
 describe("ensureDefaultPipeline", () => {
   it("seeds Sales with the four approved stages at 10/35/60/80", async () => {
     const { stages } = await seedPipelineScene();

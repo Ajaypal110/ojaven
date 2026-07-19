@@ -31,6 +31,14 @@ export const teamRouter = router({
   })),
 
   /**
+   * The caller's own membership, alone — the standard "what's my role"
+   * query for every gated page. Exists so pages that only gate rendering
+   * don't overfetch the whole roster via team.list (trivial at 2 members,
+   * a waste pattern at 30 members x 18 modules).
+   */
+  myMembership: teamProcedure.query(({ ctx }) => ctx.teamMember),
+
+  /**
    * The explicit bootstrap path — agencyProcedure, not teamProcedure
    * (chicken/egg: it creates the very row teamProcedure requires).
    * Idempotent; called by onboarding and the (product) layout effect.
