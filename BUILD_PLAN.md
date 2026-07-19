@@ -76,7 +76,7 @@ needs zero new externals.**
 
 | # | Pass | Notes |
 |---|---|---|
-| C0 | **UI foundation (shadcn/ui adoption)** | Before the portal: everything client-facing must stop looking like inline-styled scaffolding. Also the moment to revisit board DnD (KNOWN_ITEMS). |
+| C0 | **UI foundation (shadcn/ui adoption)** | Before the portal: everything client-facing must stop looking like inline-styled scaffolding. Also the moment to revisit board DnD (KNOWN_ITEMS). **Accepted (review, 2026-07-19): every Phase-A module ships inline-styled and gets re-skinned HERE in one pass — deliberate re-skin debt, not piecemeal restyling along the way.** |
 | C1 | **14. Client Portal** | Needs 2, 3b, Clerk portal-user pool, subdomain routing. Split: C1a auth+shell, C1b surfaces (11 approvals, 13 invoices, 9 dashboards as available). |
 | C2 | **9. Reporting + Dashboards** | Nango + GA4 first; widgets CRUD + metric fetch + Recharts; scheduled PDFs last (needs Trigger + R2). |
 | C3 | **7 + 15. Twilio + Unified Inbox** | `messages` table exists; conversation-grouping design needed. |
