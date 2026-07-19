@@ -44,6 +44,7 @@ export default function TeamPage() {
       setConfirmingRemoveId(null);
     },
   });
+  const stepDown = trpc.team.stepDownAsOwner.useMutation({ onSuccess: invalidate });
   const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
 
   const {
@@ -98,6 +99,16 @@ export default function TeamPage() {
                     </div>
                     <div style={{ color: "#888", fontSize: "0.875rem" }}>{member.email}</div>
                   </div>
+
+                  {member.id === caller.memberId && caller.role === "owner" && (
+                    <button
+                      type="button"
+                      disabled={stepDown.isPending}
+                      onClick={() => stepDown.mutate()}
+                    >
+                      {stepDown.isPending ? "Stepping down…" : "Step down as owner"}
+                    </button>
+                  )}
 
                   {manageable ? (
                     <>
@@ -157,9 +168,12 @@ export default function TeamPage() {
             })}
           </ul>
 
-          {(updateRole.error || promote.error || remove.error) && (
+          {(updateRole.error || promote.error || remove.error || stepDown.error) && (
             <p style={{ color: "#D97706" }}>
-              {updateRole.error?.message ?? promote.error?.message ?? remove.error?.message}
+              {updateRole.error?.message ??
+                promote.error?.message ??
+                remove.error?.message ??
+                stepDown.error?.message}
             </p>
           )}
 
