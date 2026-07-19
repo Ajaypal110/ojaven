@@ -1,5 +1,5 @@
 import { boolean, date, index, integer, numeric, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
-import { id, timestamps } from "./_helpers";
+import { id, softDelete, timestamps } from "./_helpers";
 import { dealStatusEnum } from "./_enums";
 import { agencies, users } from "./identity";
 import { clients } from "./crm";
@@ -16,6 +16,7 @@ export const pipelines = pgTable(
     isDefault: boolean("is_default").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
     ...timestamps,
+    ...softDelete, // archive semantics — service guard refuses while open deals exist
   },
   (table) => [index("pipelines_agency_idx").on(table.agencyId)]
 );
@@ -35,6 +36,7 @@ export const pipelineStages = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
     closeProbability: integer("close_probability").notNull().default(0), // 0-100, stage-default win %
     ...timestamps,
+    ...softDelete, // archive semantics — service guard refuses while active deals sit in the stage
   },
   (table) => [
     index("pipeline_stages_pipeline_idx").on(table.pipelineId),
@@ -50,9 +52,14 @@ export const deals = pgTable(
     agencyId: uuid("agency_id")
       .notNull()
       .references(() => agencies.id, { onDelete: "cascade" }),
+    // restrict, not cascade: client deletion is soft (join-filtered deal
+    // visibility, zero-mutation restore) — a HARD client delete destroying
+    // deals with no recovery would undercut deals.deletedAt entirely.
+    // Verified empirically that restrict does not break the agency-level
+    // cascade diamond (deals fall via agencyId in the same statement).
     clientId: uuid("client_id")
       .notNull()
-      .references(() => clients.id, { onDelete: "cascade" }),
+      .references(() => clients.id, { onDelete: "restrict" }),
     pipelineId: uuid("pipeline_id")
       .notNull()
       .references(() => pipelines.id, { onDelete: "restrict" }),
@@ -68,6 +75,7 @@ export const deals = pgTable(
     expectedCloseDate: date("expected_close_date"),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     ...timestamps,
+    ...softDelete,
   },
   (table) => [
     index("deals_agency_status_idx").on(table.agencyId, table.status),
