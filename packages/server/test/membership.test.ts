@@ -96,21 +96,31 @@ describe("ensureMembership", () => {
     expect(invitation?.acceptedAt).not.toBeNull();
   });
 
-  it("revives a soft-deleted membership instead of duplicating", async () => {
+  it("REGRESSION: does NOT revive a removed member on a bare call (layout-effect shape)", async () => {
+    // The original version of this test asserted bare revival — that
+    // expectation WAS the bug: a removed member's next page load fired
+    // ensureMembership (no clerkMembershipId, no invitation) and silently
+    // un-removed them. Bare calls must now refuse.
     const agency = await freshAgency();
     const owner = await freshUser();
-    const rejoiner = await freshUser("rejoiner");
+    const removed = await freshUser("removed");
     await ensureMembership({ agencyId: agency.id, userId: owner.id });
 
-    const original = await ensureMembership({ agencyId: agency.id, userId: rejoiner.id });
+    const original = await ensureMembership({ agencyId: agency.id, userId: removed.id });
     await db
       .update(teamMembers)
       .set({ deletedAt: new Date() })
       .where(eq(teamMembers.id, original.member!.id));
 
-    const revived = await ensureMembership({ agencyId: agency.id, userId: rejoiner.id });
-    expect(revived.member?.id).toBe(original.member?.id);
-    expect(revived.member?.deletedAt).toBeNull();
+    const attempt = await ensureMembership({ agencyId: agency.id, userId: removed.id });
+    expect(attempt.member).toBeNull();
+    expect("revivalRefused" in attempt && attempt.revivalRefused).toBe(true);
+
+    const [row] = await db
+      .select()
+      .from(teamMembers)
+      .where(eq(teamMembers.id, original.member!.id));
+    expect(row?.deletedAt).not.toBeNull(); // still removed
   });
 
   it("RACE: concurrent first-joins of a brand-new agency produce exactly one owner", async () => {

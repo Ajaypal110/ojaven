@@ -73,6 +73,7 @@ export async function backdateRecoveryRequest(agencyId: string, toEpochMs: numbe
  */
 export function stubGateway(lastSignIns: Record<string, number | null> = {}) {
   const sentInvitations: Array<{ email: string; clerkRole: string }> = [];
+  const removedMembers: Array<{ clerkOrgId: string; clerkUserId: string }> = [];
   const gateway: ClerkGateway = {
     async getUserLastSignInAt(userIds) {
       const result = new Map<string, number | null>();
@@ -85,6 +86,9 @@ export function stubGateway(lastSignIns: Record<string, number | null> = {}) {
       sentInvitations.push({ email, clerkRole });
       return `orginv_test_${randomUUID()}`;
     },
+    async removeOrganizationMember({ clerkOrgId, clerkUserId }) {
+      removedMembers.push({ clerkOrgId, clerkUserId });
+    },
   };
-  return { gateway, sentInvitations };
+  return { gateway, sentInvitations, removedMembers };
 }

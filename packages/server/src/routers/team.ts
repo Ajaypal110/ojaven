@@ -66,8 +66,10 @@ export const teamRouter = router({
   remove: teamProcedure.input(teamMemberIdSchema).mutation(({ ctx, input }) =>
     removeMember({
       agencyId: ctx.agencyId,
+      clerkOrgId: ctx.clerkOrgId,
       actor: { userId: ctx.userId },
       memberId: input.memberId,
+      gateway: liveClerkGateway,
     })
   ),
 

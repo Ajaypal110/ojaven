@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,6 +38,13 @@ export default function TeamPage() {
   });
   const updateRole = trpc.team.updateRole.useMutation({ onSuccess: invalidate });
   const promote = trpc.team.promoteToCoOwner.useMutation({ onSuccess: invalidate });
+  const remove = trpc.team.remove.useMutation({
+    onSuccess: () => {
+      invalidate();
+      setConfirmingRemoveId(null);
+    },
+  });
+  const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null);
 
   const {
     register,
@@ -122,6 +130,24 @@ export default function TeamPage() {
                           Make co-owner
                         </button>
                       )}
+                      {confirmingRemoveId === member.id ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={remove.isPending}
+                            onClick={() => remove.mutate({ memberId: member.id })}
+                          >
+                            {remove.isPending ? "Removing…" : "Confirm remove"}
+                          </button>
+                          <button type="button" onClick={() => setConfirmingRemoveId(null)}>
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button type="button" onClick={() => setConfirmingRemoveId(member.id)}>
+                          Remove
+                        </button>
+                      )}
                     </>
                   ) : (
                     <span style={{ color: "#D97706", fontSize: "0.875rem" }}>{member.role}</span>
@@ -131,9 +157,9 @@ export default function TeamPage() {
             })}
           </ul>
 
-          {(updateRole.error || promote.error) && (
+          {(updateRole.error || promote.error || remove.error) && (
             <p style={{ color: "#D97706" }}>
-              {updateRole.error?.message ?? promote.error?.message}
+              {updateRole.error?.message ?? promote.error?.message ?? remove.error?.message}
             </p>
           )}
 

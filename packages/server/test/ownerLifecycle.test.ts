@@ -9,7 +9,7 @@ import {
   transferOwnership,
   updateMemberRole,
 } from "../src/services/teamMembership";
-import { cleanupAgencies, cleanupUsers, seedAgency, seedUser } from "./helpers";
+import { cleanupAgencies, cleanupUsers, seedAgency, seedUser, stubGateway } from "./helpers";
 
 const agencyIds: string[] = [];
 const userIds: string[] = [];
@@ -129,8 +129,10 @@ describe("updateMemberRole / removeMember role matrix", () => {
     await expect(
       removeMember({
         agencyId: agency.id,
+        clerkOrgId: agency.clerkOrgId,
         actor: { userId: ownerUser.id },
         memberId: admin!.member.id,
+        gateway: stubGateway().gateway,
       })
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
@@ -141,8 +143,10 @@ describe("updateMemberRole / removeMember role matrix", () => {
 
     const removed = await removeMember({
       agencyId: agency.id,
+      clerkOrgId: agency.clerkOrgId,
       actor: { userId: adminA!.user.id },
       memberId: operator!.member.id,
+      gateway: stubGateway().gateway,
     });
     expect(removed?.id).toBe(operator!.member.id);
     const [operatorRow] = await db
@@ -168,8 +172,10 @@ describe("updateMemberRole / removeMember role matrix", () => {
     await expect(
       removeMember({
         agencyId: agency.id,
+        clerkOrgId: agency.clerkOrgId,
         actor: { userId: manager!.user.id },
         memberId: operator!.member.id,
+        gateway: stubGateway().gateway,
       })
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
 

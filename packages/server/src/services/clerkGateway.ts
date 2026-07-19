@@ -27,4 +27,11 @@ export interface ClerkGateway {
     email: string;
     clerkRole: "org:admin" | "org:member";
   }): Promise<string>;
+
+  /**
+   * Remove a member from the Clerk org. Without this, our soft-delete is
+   * cosmetic: the member keeps passing agencyProcedure (org claim intact)
+   * and keeps full product access.
+   */
+  removeOrganizationMember(params: { clerkOrgId: string; clerkUserId: string }): Promise<void>;
 }

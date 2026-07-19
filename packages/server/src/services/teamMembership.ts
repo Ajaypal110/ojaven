@@ -149,12 +149,50 @@ export async function ensureMembership(params: {
       return { member: existing, created: false };
     }
 
-    const role = await resolveRole(tx, params);
-
     if (existing) {
-      // Re-joining after removal: revive the soft-deleted row with a
-      // freshly resolved role rather than inserting a duplicate (the
-      // (agencyId, userId) unique constraint would reject it anyway).
+      // Soft-deleted row = deliberately removed. Revival requires EVIDENCE
+      // of a genuine re-join, not just presence in the Clerk org — the
+      // layout effect fires for anyone with an org claim, and without this
+      // gate a removed member's next page load would silently un-remove
+      // them. Two acceptable proofs:
+      //  1. A pending invitation (agencyId + email): re-invited through
+      //     our flow.
+      //  2. A clerkMembershipId DIFFERENT from the stored one: Clerk
+      //     itself re-admitted them (fresh membership, e.g. re-added via
+      //     Clerk's dashboard). Same-id means a webhook redelivery of the
+      //     stale membership.created from BEFORE the removal — refused,
+      //     so out-of-order delivery can't resurrect a removed member.
+      // The layout-effect path passes no clerkMembershipId and a removed
+      // member has no pending invitation, so it can never revive.
+      const [user] = await tx
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, params.userId))
+        .limit(1);
+
+      const [pendingInvitation] = user
+        ? await tx
+            .select({ id: invitations.id })
+            .from(invitations)
+            .where(
+              and(
+                eq(invitations.agencyId, params.agencyId),
+                eq(invitations.email, user.email),
+                eq(invitations.status, "pending")
+              )
+            )
+            .limit(1)
+        : [undefined];
+
+      const freshClerkMembership =
+        params.clerkMembershipId != null &&
+        params.clerkMembershipId !== existing.clerkMembershipId;
+
+      if (!pendingInvitation && !freshClerkMembership) {
+        return { member: null, created: false, revivalRefused: true };
+      }
+
+      const role = await resolveRole(tx, params);
       const [revived] = await tx
         .update(teamMembers)
         .set({
@@ -164,8 +202,10 @@ export async function ensureMembership(params: {
         })
         .where(eq(teamMembers.id, existing.id))
         .returning();
-      return { member: revived, created: false };
+      return { member: revived ?? null, created: false };
     }
+
+    const role = await resolveRole(tx, params);
 
     const [inserted] = await tx
       .insert(teamMembers)
@@ -359,28 +399,68 @@ export async function updateMemberRole(params: {
   });
 }
 
+/**
+ * Removal is two systems, ordered like inviteMember: our soft-delete first
+ * (inside the locked transaction, where the role-matrix guards live), then
+ * the Clerk org removal. If Clerk fails, a compensating conditional
+ * un-delete reverts ours and rethrows — so removal is all-or-nothing from
+ * the admin's perspective. Without the Clerk half, our soft-delete is
+ * cosmetic (the member keeps their org claim and full product access).
+ *
+ * KNOWN, ACCEPTED TAIL: after Clerk-side removal, the removed member's
+ * existing session token stays valid until Clerk's refresh cycle (~60s),
+ * during which agencyProcedure (org-claim-based) still admits them. This
+ * discloses nothing new — they had legitimate access moments earlier, and
+ * anything they can see in the tail is the same data they could see then.
+ * Closing it would mean membership checks on every procedure
+ * (teamProcedure everywhere), which reintroduces a bootstrap race for
+ * brand-new users. Revisit only if a compliance need demands it.
+ * The revival gate in ensureMembership is what makes the removal STICK:
+ * their next page load can no longer silently re-provision them.
+ */
 export async function removeMember(params: {
   agencyId: string;
+  clerkOrgId: string;
   actor: { userId: string };
   memberId: string;
+  gateway: ClerkGateway;
 }) {
-  return txDb.transaction(async (tx) => {
+  const removedAt = new Date();
+
+  const target = await txDb.transaction(async (tx) => {
     await lockAgency(tx, params.agencyId);
 
     const actor = await activeMemberByUser(tx, params.agencyId, params.actor.userId);
-    const target = await activeMemberById(tx, params.agencyId, params.memberId);
-    if (!actor || !target) {
+    const targetRow = await activeMemberById(tx, params.agencyId, params.memberId);
+    if (!actor || !targetRow) {
       throw new TRPCError({ code: "NOT_FOUND", message: "Member not found." });
     }
-    assertCanAdminister(actor, target);
+    assertCanAdminister(actor, targetRow);
 
-    const [removed] = await tx
+    await tx
       .update(teamMembers)
-      .set({ deletedAt: new Date() })
-      .where(eq(teamMembers.id, target.id))
-      .returning({ id: teamMembers.id });
-    return removed;
+      .set({ deletedAt: removedAt })
+      .where(eq(teamMembers.id, targetRow.id));
+    return targetRow;
   });
+
+  try {
+    await params.gateway.removeOrganizationMember({
+      clerkOrgId: params.clerkOrgId,
+      clerkUserId: target.userId,
+    });
+  } catch (err) {
+    // Compensate: revert ONLY if our soft-delete is still the exact one we
+    // wrote (deletedAt matches), so an intervening state change (however
+    // unlikely under per-agency serialization) can't be clobbered.
+    await db
+      .update(teamMembers)
+      .set({ deletedAt: null })
+      .where(and(eq(teamMembers.id, target.id), eq(teamMembers.deletedAt, removedAt)));
+    throw err;
+  }
+
+  return { id: target.id };
 }
 
 /** Swap: actor (owner) -> admin, target -> owner. Owner count unchanged. */

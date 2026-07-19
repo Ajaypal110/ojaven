@@ -23,4 +23,12 @@ export const liveClerkGateway: ClerkGateway = {
     });
     return invitation.id;
   },
+
+  async removeOrganizationMember({ clerkOrgId, clerkUserId }) {
+    const client = await clerkClient();
+    await client.organizations.deleteOrganizationMembership({
+      organizationId: clerkOrgId,
+      userId: clerkUserId,
+    });
+  },
 };
