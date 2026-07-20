@@ -1,8 +1,14 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import type { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
-import { db, agencies, agencySettings, teamMembers, users } from "@ojaven/db";
-import { ensureMembership } from "@ojaven/server";
+import { db, agencies, agencySettings, teamMembers } from "@ojaven/db";
+import {
+  ensureMembership,
+  handleUserDeleted,
+  liveClerkGateway,
+  provisionUserRow,
+  softDeleteAgencyByClerkOrgId,
+} from "@ojaven/server";
 import { logger } from "@ojaven/shared";
 
 export async function POST(req: NextRequest) {
@@ -27,18 +33,26 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        await upsertUser({
-          id,
-          email: email.toLowerCase(),
-          firstName: first_name ?? null,
-          lastName: last_name ?? null,
-          imageUrl: image_url ?? null,
+        // Same shared write path as JIT provisioning — reclaim-aware, so a
+        // recycled email tombstones its orphan instead of colliding.
+        await provisionUserRow({
+          gateway: liveClerkGateway,
+          identity: {
+            id,
+            email: email.toLowerCase(),
+            firstName: first_name ?? null,
+            lastName: last_name ?? null,
+            imageUrl: image_url ?? null,
+          },
         });
         break;
       }
 
       case "user.deleted": {
-        if (evt.data.id) await softDeleteUser(evt.data.id);
+        // Tombstones the email (not just soft-delete) so a same-email
+        // re-signup doesn't collide on users.email — the production half of
+        // the recycled-email fix.
+        if (evt.data.id) await handleUserDeleted(evt.data.id);
         break;
       }
 
@@ -46,6 +60,11 @@ export async function POST(req: NextRequest) {
       case "organization.updated": {
         const { id, name, slug } = evt.data;
         await upsertAgency({ clerkOrgId: id, name, subdomainFallback: slug ?? id });
+        break;
+      }
+
+      case "organization.deleted": {
+        if (evt.data.id) await softDeleteAgencyByClerkOrgId(evt.data.id);
         break;
       }
 
@@ -88,32 +107,6 @@ export async function POST(req: NextRequest) {
   }
 
   return new Response("ok", { status: 200 });
-}
-
-async function upsertUser(params: {
-  id: string;
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-  imageUrl: string | null;
-}) {
-  await db
-    .insert(users)
-    .values(params)
-    .onConflictDoUpdate({
-      target: users.id,
-      set: {
-        email: params.email,
-        firstName: params.firstName,
-        lastName: params.lastName,
-        imageUrl: params.imageUrl,
-        updatedAt: new Date(),
-      },
-    });
-}
-
-async function softDeleteUser(clerkUserId: string) {
-  await db.update(users).set({ deletedAt: new Date() }).where(eq(users.id, clerkUserId));
 }
 
 async function upsertAgency(params: { clerkOrgId: string; name: string; subdomainFallback: string }) {

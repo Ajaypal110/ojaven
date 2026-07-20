@@ -71,7 +71,12 @@ export async function backdateRecoveryRequest(agencyId: string, toEpochMs: numbe
  * you pass (absent keys behave like deleted Clerk accounts — no evidence).
  * Invitation creation returns a fake id and records the call.
  */
-export function stubGateway(lastSignIns: Record<string, number | null> = {}) {
+export function stubGateway(
+  lastSignIns: Record<string, number | null> = {},
+  // email (lowercased) -> Clerk user ids that currently own it. Absent =
+  // no live owner (the reclaimable-orphan case).
+  emailOwners: Record<string, string[]> = {}
+) {
   const sentInvitations: Array<{ email: string; clerkRole: string }> = [];
   const removedMembers: Array<{ clerkOrgId: string; clerkUserId: string }> = [];
   const gateway: ClerkGateway = {
@@ -88,6 +93,12 @@ export function stubGateway(lastSignIns: Record<string, number | null> = {}) {
     },
     async removeOrganizationMember({ clerkOrgId, clerkUserId }) {
       removedMembers.push({ clerkOrgId, clerkUserId });
+    },
+    async getUser() {
+      return null;
+    },
+    async getUserIdsForEmail(email) {
+      return emailOwners[email.toLowerCase()] ?? [];
     },
   };
   return { gateway, sentInvitations, removedMembers };

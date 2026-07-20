@@ -31,4 +31,33 @@ export const liveClerkGateway: ClerkGateway = {
       userId: clerkUserId,
     });
   },
+
+  async getUser(clerkUserId) {
+    const client = await clerkClient();
+    try {
+      const user = await client.users.getUser(clerkUserId);
+      const email = user.emailAddresses.find(
+        (address) => address.id === user.primaryEmailAddressId
+      )?.emailAddress;
+      return {
+        id: user.id,
+        email: email ?? null,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
+      };
+    } catch {
+      // Clerk 404 for a deleted/unknown user id — treated as "no such user".
+      return null;
+    }
+  },
+
+  async getUserIdsForEmail(email) {
+    const client = await clerkClient();
+    const { data } = await client.users.getUserList({
+      emailAddress: [email.toLowerCase()],
+      limit: 100,
+    });
+    return data.map((user) => user.id);
+  },
 };

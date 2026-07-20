@@ -34,4 +34,28 @@ export interface ClerkGateway {
    * and keeps full product access.
    */
   removeOrganizationMember(params: { clerkOrgId: string; clerkUserId: string }): Promise<void>;
+
+  /**
+   * One Clerk user's identity fields, or null if Clerk has no such user
+   * (deleted account). Used by user provisioning to fetch email/name for
+   * the row it creates.
+   */
+  getUser(clerkUserId: string): Promise<{
+    id: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    imageUrl: string | null;
+  } | null>;
+
+  /**
+   * The Clerk user ids that currently own a given email address (lowercased
+   * match). Empty when no live Clerk account holds it. This is how
+   * provisioning decides an email conflict is safe to reclaim: if OUR
+   * stored id for that email is NOT in Clerk's live set, the stored row is
+   * an orphan (its Clerk account was deleted) and can be tombstoned;
+   * if it IS still live, the email genuinely belongs to another active
+   * account and reclaim is refused.
+   */
+  getUserIdsForEmail(email: string): Promise<string[]>;
 }
