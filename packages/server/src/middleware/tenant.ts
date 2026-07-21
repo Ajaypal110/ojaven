@@ -5,6 +5,7 @@ import { agencies, agencySettings } from "@ojaven/db";
 import type { Context } from "../context";
 import { middleware } from "../trpc";
 import { AgencySyncPendingError } from "../errors";
+import { pickProvisionSubdomain } from "../services/settings";
 
 /**
  * JIT-provisions the agencies row for a Clerk org that doesn't have one
@@ -70,9 +71,13 @@ async function ensureAgencySettings(db: Context["db"], clerkOrgId: string, agenc
   const client = await clerkClient();
   const org = await client.organizations.getOrganization({ organizationId: clerkOrgId });
 
+  // Normalized, non-reserved, unique — NOT the raw slug/org-id, which could
+  // be mixed-case, reserved, or a collision. See pickProvisionSubdomain.
+  const subdomain = await pickProvisionSubdomain(db, agencyId, org.slug);
+
   await db
     .insert(agencySettings)
-    .values({ agencyId, subdomain: org.slug ?? clerkOrgId })
+    .values({ agencyId, subdomain })
     .onConflictDoNothing({ target: agencySettings.agencyId });
 }
 

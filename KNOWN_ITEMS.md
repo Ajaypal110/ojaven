@@ -18,6 +18,15 @@ later instead of surprises. Add the date and the reasoning when appending.
   The 30-day inactivity precondition and 14-day grace period ARE the
   safeguard until Resend lands real email.
 
+- **Subdomain denylist is belt-and-suspenders, not the routing fix** (2026-07-21).
+  The reserved-word denylist blocks CUSTOMER claims on infra subdomains
+  (accounts, clerk, api, ...). But the actual routing/auth/cert protection —
+  ensuring `accounts.ojaven.com` reaches Clerk and not a customer even if
+  the denylist were bypassed — is DNS wildcard-vs-specific-record
+  precedence: a specific `accounts.ojaven.com` record beats the
+  `*.ojaven.com` wildcard. That has to be set up at the portal / Clerk-prod
+  stage (C1). Don't assume the denylist alone secures those names.
+
 - **No in-app organization switcher** (2026-07-20). A user who already
   belongs to one org and is then invited to a SECOND org has no UI to make
   the new org their active Clerk org — so the (product) layout effect never

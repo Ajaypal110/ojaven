@@ -6,6 +6,7 @@ import { clientRouter } from "./client";
 import { teamRouter } from "./team";
 import { pipelineRouter } from "./pipeline";
 import { dealsRouter } from "./deals";
+import { settingsRouter } from "./settings";
 
 export const appRouter = router({
   health: healthRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   team: teamRouter,
   pipeline: pipelineRouter,
   deals: dealsRouter,
+  settings: settingsRouter,
 });
 
 export type AppRouter = typeof appRouter;
