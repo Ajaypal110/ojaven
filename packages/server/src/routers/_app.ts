@@ -3,6 +3,7 @@ import { healthRouter } from "./health";
 import { userRouter } from "./user";
 import { agencyRouter } from "./agency";
 import { clientRouter } from "./client";
+import { contactsRouter } from "./contacts";
 import { teamRouter } from "./team";
 import { pipelineRouter } from "./pipeline";
 import { dealsRouter } from "./deals";
@@ -13,6 +14,7 @@ export const appRouter = router({
   user: userRouter,
   agency: agencyRouter,
   clients: clientRouter,
+  contacts: contactsRouter,
   team: teamRouter,
   pipeline: pipelineRouter,
   deals: dealsRouter,

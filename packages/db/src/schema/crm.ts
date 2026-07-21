@@ -8,6 +8,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { id, softDelete, timestamps } from "./_helpers";
@@ -70,6 +71,15 @@ export const clientContacts = pgTable(
       "client_contacts_email_lowercase",
       sql`${table.email} IS NULL OR ${table.email} = lower(${table.email})`
     ),
+    // At most one primary contact per client — the DB-level backstop behind
+    // the advisory-locked service guard (mirrors subdomain's lock+constraint
+    // pairing). Partial so it only constrains live primaries: demoting or
+    // soft-deleting the current primary frees the slot, and non-primary rows
+    // never contend. Makes the invariant true regardless of caller discipline
+    // (a bulk import or a forgotten lock can't create two).
+    uniqueIndex("client_contacts_one_primary")
+      .on(table.clientId)
+      .where(sql`${table.isPrimary} AND ${table.deletedAt} IS NULL`),
     index("client_contacts_client_idx").on(table.clientId),
     index("client_contacts_agency_idx").on(table.agencyId),
   ]
