@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateClientSchema, type UpdateClientInput, clientStatusValues } from "@ojaven/shared";
 import { trpc } from "@/lib/trpc/client";
+import { ContactsSection } from "./ContactsSection";
 
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
@@ -170,6 +171,8 @@ export default function ClientDetailPage() {
           </div>
         </form>
       )}
+
+      {client.data && <ContactsSection clientId={params.id} />}
     </div>
   );
 }
