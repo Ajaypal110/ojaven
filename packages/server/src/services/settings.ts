@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq, ne } from "drizzle-orm";
-import { agencySettings, db } from "@ojaven/db";
+import { agencies, agencySettings, db } from "@ojaven/db";
 import { txDb, type Tx } from "@ojaven/db/transactionClient";
 import {
   SUBDOMAIN_REGEX,
@@ -10,18 +10,27 @@ import {
 } from "@ojaven/shared";
 import { lockKey } from "./agencyLock";
 
+/** The settings row plus the agency name (which lives on `agencies`). */
 export async function getSettings(agencyId: string) {
   const [row] = await db
-    .select()
+    .select({
+      settings: agencySettings,
+      name: agencies.name,
+    })
     .from(agencySettings)
+    .innerJoin(agencies, eq(agencies.id, agencySettings.agencyId))
     .where(eq(agencySettings.agencyId, agencyId))
     .limit(1);
   if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Agency settings not found." });
-  return row;
+  return { ...row.settings, name: row.name };
 }
 
-/** Presence-based partial update — undefined = not sent, so untouched fields
- * are never clobbered. null clears the nullable columns (logoUrl, primaryColor). */
+/**
+ * Presence-based partial update — undefined = not sent, so untouched fields
+ * are never clobbered; null clears the nullable columns (logoUrl,
+ * primaryColor). `name` writes to `agencies`, everything else to
+ * `agency_settings`, atomically in one transaction.
+ */
 export async function updateSettings(params: {
   agencyId: string;
   patch: UpdateSettingsInput;
@@ -33,17 +42,41 @@ export async function updateSettings(params: {
   if (patch.timezone !== undefined) set.timezone = patch.timezone;
   if (patch.currency !== undefined) set.currency = patch.currency;
 
-  if (Object.keys(set).length === 0) {
+  const hasSettings = Object.keys(set).length > 0;
+  const hasName = patch.name !== undefined;
+  if (!hasSettings && !hasName) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing to update." });
   }
 
-  const [updated] = await db
-    .update(agencySettings)
-    .set(set)
-    .where(eq(agencySettings.agencyId, params.agencyId))
-    .returning();
-  if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Agency settings not found." });
-  return updated;
+  return txDb.transaction(async (tx) => {
+    if (hasName) {
+      await tx.update(agencies).set({ name: patch.name }).where(eq(agencies.id, params.agencyId));
+    }
+
+    const [settingsRow] = hasSettings
+      ? await tx
+          .update(agencySettings)
+          .set(set)
+          .where(eq(agencySettings.agencyId, params.agencyId))
+          .returning()
+      : await tx
+          .select()
+          .from(agencySettings)
+          .where(eq(agencySettings.agencyId, params.agencyId))
+          .limit(1);
+
+    if (!settingsRow) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Agency settings not found." });
+    }
+
+    const [agency] = await tx
+      .select({ name: agencies.name })
+      .from(agencies)
+      .where(eq(agencies.id, params.agencyId))
+      .limit(1);
+
+    return { ...settingsRow, name: agency?.name ?? null };
+  });
 }
 
 function isUniqueViolation(err: unknown): boolean {

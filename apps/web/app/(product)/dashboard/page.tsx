@@ -19,6 +19,8 @@ export default function DashboardPage() {
         <Link href="/team">Team &rarr;</Link>
         {"  "}
         <Link href="/pipeline">Pipeline &rarr;</Link>
+        {"  "}
+        <Link href="/settings">Settings &rarr;</Link>
       </p>
       <h1>tRPC round-trip check</h1>
       {ping.isLoading && <p>Loading…</p>}

@@ -98,6 +98,10 @@ const TIMEZONES: ReadonlySet<string> = new Set(
  * scope (C1). logoUrl is a bare URL until R2 makes it a real upload.
  */
 export const updateSettingsSchema = z.object({
+  // name lives on `agencies`, not `agency_settings` — updateSettings writes
+  // it cross-table in one transaction. Included here so the settings form is
+  // a single save.
+  name: z.string().trim().min(1, "Name is required").max(200).optional(),
   logoUrl: z.string().url().max(2048).nullable().optional(),
   primaryColor: z
     .string()

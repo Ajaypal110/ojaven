@@ -39,24 +39,38 @@ describe("assertStructureRole (shared structure gate)", () => {
 });
 
 describe("getSettings / updateSettings", () => {
-  it("returns the row; partial update doesn't clobber untouched fields", async () => {
+  it("returns the row with agency name; partial update doesn't clobber untouched fields", async () => {
     const { agency } = await seedWithSettings({ timezone: "UTC", currency: "USD" });
 
     const got = await getSettings(agency.id);
     expect(got.timezone).toBe("UTC");
+    expect(got.name).toBe(agency.name); // name joined from agencies
 
-    // Update only timezone — currency must survive.
+    // Update only timezone — currency AND name must survive.
     const updated = await updateSettings({
       agencyId: agency.id,
       patch: { timezone: "America/New_York" },
     });
     expect(updated.timezone).toBe("America/New_York");
     expect(updated.currency).toBe("USD"); // untouched
+    expect(updated.name).toBe(agency.name); // untouched
 
     // Clearing a nullable field with explicit null.
     const cleared = await updateSettings({ agencyId: agency.id, patch: { logoUrl: null } });
     expect(cleared.logoUrl).toBeNull();
     expect(cleared.timezone).toBe("America/New_York"); // still untouched
+  });
+
+  it("updates the agency name (cross-table), name-only patch allowed, settings untouched", async () => {
+    const { agency } = await seedWithSettings({ timezone: "Europe/London", currency: "GBP" });
+
+    const renamed = await updateSettings({ agencyId: agency.id, patch: { name: "Renamed Agency" } });
+    expect(renamed.name).toBe("Renamed Agency");
+    expect(renamed.timezone).toBe("Europe/London"); // settings untouched by a name-only write
+    expect(renamed.currency).toBe("GBP");
+
+    // Persisted on agencies, visible via getSettings.
+    expect((await getSettings(agency.id)).name).toBe("Renamed Agency");
   });
 
   it("rejects an empty patch", async () => {

@@ -7,6 +7,7 @@ const isProtectedRoute = createRouteMatcher([
   "/clients(.*)",
   "/team(.*)",
   "/pipeline(.*)",
+  "/settings(.*)",
 ]);
 const isSignUpRoute = createRouteMatcher(["/sign-up(.*)"]);
 
