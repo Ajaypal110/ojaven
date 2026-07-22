@@ -49,6 +49,17 @@ later instead of surprises. Add the date and the reasoning when appending.
   amendment. Real fix: reconcile the `entity_tags` unique definition so the
   phantom diff stops (revisit at the C0 schema pass).
 
+- **Retainer "from" picker lets you strand yourself in the future** (2026-07-22).
+  The retainer form accepts a future effectiveFrom, and setRetainer refuses any
+  later period that isn't strictly after the current open one — meanwhile time
+  can only be logged in the past (future-date guard). So setting a retainer
+  effective next month, then trying to log/test over-service THIS month, is a
+  dead end: no reachable month has both a retainer and loggable time. Hit
+  during the M5 click-through (had to clear the periods to recover). Fix
+  candidates (UX only, invariants are correct): default the "from" picker to
+  the current month, and/or warn when a future month is chosen, and/or allow
+  re-opening an earlier period. Do at the M5 UI polish / C0 pass.
+
 - **Log-time-on-behalf-of-others deferred** (2026-07-21). `time.logEntry`
   always writes `userId = ctx.userId` — you can only log your own time.
   Agencies will want a manager/admin to log time for a teammate (and to pick

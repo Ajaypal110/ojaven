@@ -11,6 +11,7 @@ import { ContactsSection } from "./ContactsSection";
 import { TagsSection } from "./TagsSection";
 import { CustomFieldsSection } from "./CustomFieldsSection";
 import { TasksSection } from "./TasksSection";
+import { TimeSection } from "./TimeSection";
 import { ActivityTimeline } from "./ActivityTimeline";
 
 export default function ClientDetailPage() {
@@ -192,6 +193,7 @@ export default function ClientDetailPage() {
             canStructure={canStructure}
           />
           <TasksSection clientId={params.id} />
+          <TimeSection clientId={params.id} />
           <ActivityTimeline entityType="client" entityId={params.id} />
         </>
       )}
