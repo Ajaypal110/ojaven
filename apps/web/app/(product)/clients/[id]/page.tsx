@@ -8,6 +8,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { updateClientSchema, type UpdateClientInput, clientStatusValues } from "@ojaven/shared";
 import { trpc } from "@/lib/trpc/client";
 import { ContactsSection } from "./ContactsSection";
+import { TagsSection } from "./TagsSection";
+import { CustomFieldsSection } from "./CustomFieldsSection";
 
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
@@ -18,6 +20,12 @@ export default function ClientDetailPage() {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const client = trpc.clients.byId.useQuery({ id: params.id });
+  const membership = trpc.team.myMembership.useQuery();
+  // Structure = owner/admin (definition management). Data (attach tags, fill
+  // field values) is every role. The server enforces this too — the flag only
+  // gates what the UI offers.
+  const canStructure =
+    membership.data?.role === "owner" || membership.data?.role === "admin";
 
   const {
     register,
@@ -172,7 +180,17 @@ export default function ClientDetailPage() {
         </form>
       )}
 
-      {client.data && <ContactsSection clientId={params.id} />}
+      {client.data && (
+        <>
+          <ContactsSection clientId={params.id} />
+          <TagsSection entityType="client" entityId={params.id} canStructure={canStructure} />
+          <CustomFieldsSection
+            entityType="client"
+            entityId={params.id}
+            canStructure={canStructure}
+          />
+        </>
+      )}
     </div>
   );
 }
