@@ -20,6 +20,8 @@ export default function DashboardPage() {
         {"  "}
         <Link href="/pipeline">Pipeline &rarr;</Link>
         {"  "}
+        <Link href="/tasks">Tasks &rarr;</Link>
+        {"  "}
         <Link href="/settings">Settings &rarr;</Link>
       </p>
       <h1>tRPC round-trip check</h1>

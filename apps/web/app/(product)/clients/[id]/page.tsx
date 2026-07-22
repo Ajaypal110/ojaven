@@ -10,6 +10,8 @@ import { trpc } from "@/lib/trpc/client";
 import { ContactsSection } from "./ContactsSection";
 import { TagsSection } from "./TagsSection";
 import { CustomFieldsSection } from "./CustomFieldsSection";
+import { TasksSection } from "./TasksSection";
+import { ActivityTimeline } from "./ActivityTimeline";
 
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
@@ -189,6 +191,8 @@ export default function ClientDetailPage() {
             entityId={params.id}
             canStructure={canStructure}
           />
+          <TasksSection clientId={params.id} />
+          <ActivityTimeline entityType="client" entityId={params.id} />
         </>
       )}
     </div>
