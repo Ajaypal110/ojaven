@@ -6,6 +6,8 @@ import { clientRouter } from "./client";
 import { contactsRouter } from "./contacts";
 import { tagsRouter } from "./tags";
 import { customFieldsRouter } from "./customFields";
+import { tasksRouter } from "./tasks";
+import { activitiesRouter } from "./activities";
 import { teamRouter } from "./team";
 import { pipelineRouter } from "./pipeline";
 import { dealsRouter } from "./deals";
@@ -19,6 +21,8 @@ export const appRouter = router({
   contacts: contactsRouter,
   tags: tagsRouter,
   customFields: customFieldsRouter,
+  tasks: tasksRouter,
+  activities: activitiesRouter,
   team: teamRouter,
   pipeline: pipelineRouter,
   deals: dealsRouter,

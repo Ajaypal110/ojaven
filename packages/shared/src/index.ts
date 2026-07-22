@@ -7,3 +7,4 @@ export * from "./validation/pipeline";
 export * from "./validation/deal";
 export * from "./validation/settings";
 export * from "./validation/taxonomy";
+export * from "./validation/task";
