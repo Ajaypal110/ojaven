@@ -8,6 +8,8 @@ import { tagsRouter } from "./tags";
 import { customFieldsRouter } from "./customFields";
 import { tasksRouter } from "./tasks";
 import { activitiesRouter } from "./activities";
+import { timeRouter } from "./time";
+import { retainersRouter } from "./retainers";
 import { teamRouter } from "./team";
 import { pipelineRouter } from "./pipeline";
 import { dealsRouter } from "./deals";
@@ -23,6 +25,8 @@ export const appRouter = router({
   customFields: customFieldsRouter,
   tasks: tasksRouter,
   activities: activitiesRouter,
+  time: timeRouter,
+  retainers: retainersRouter,
   team: teamRouter,
   pipeline: pipelineRouter,
   deals: dealsRouter,

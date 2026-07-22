@@ -37,6 +37,26 @@ later instead of surprises. Add the date and the reasoning when appending.
   (Clerk's `<OrganizationSwitcher>` or a custom one) — slot into the C0 UI
   foundation pass.
 
+- **`drizzle-kit push` false-diff wants to truncate `entity_tags`** (2026-07-21).
+  Every push since A3 re-proposes dropping+re-adding
+  `entity_tags_tag_entity_unique` (a phantom diff on that one unique
+  constraint). Harmless while the table is empty, but once it holds rows the
+  drop/re-add triggers an interactive "truncate?" prompt that a non-TTY shell
+  can't answer — and `--force` would auto-approve the truncate and DELETE the
+  rows. So do NOT `--force` a push that touches `entity_tags`. Apply schema
+  changes for other tables surgically via SQL (matching Drizzle's constraint
+  names so no new diff appears), as done for the M5 `retainers`/`time_entries`
+  amendment. Real fix: reconcile the `entity_tags` unique definition so the
+  phantom diff stops (revisit at the C0 schema pass).
+
+- **Log-time-on-behalf-of-others deferred** (2026-07-21). `time.logEntry`
+  always writes `userId = ctx.userId` — you can only log your own time.
+  Agencies will want a manager/admin to log time for a teammate (and to pick
+  the user in the UI). Straightforward to add (an optional `userId` on
+  logEntry, gated to owner/admin + validated as an active member, reusing the
+  assignee-member guard shape). Slot in when the time-tracking UI gets its
+  team view.
+
 - **~60s session tail after member removal** (2026-07-19). A removed
   member's Clerk session token stays valid until the ~60s refresh cycle;
   org-claim-based procedures admit them for that window. Accepted: they had
