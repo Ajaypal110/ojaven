@@ -12,6 +12,7 @@ import { timeRouter } from "./time";
 import { retainersRouter } from "./retainers";
 import { proposalsRouter } from "./proposals";
 import { invoicesRouter } from "./invoices";
+import { contentRouter } from "./content";
 import { publicRouter } from "./public";
 import { teamRouter } from "./team";
 import { pipelineRouter } from "./pipeline";
@@ -32,6 +33,7 @@ export const appRouter = router({
   retainers: retainersRouter,
   proposals: proposalsRouter,
   invoices: invoicesRouter,
+  content: contentRouter,
   public: publicRouter,
   team: teamRouter,
   pipeline: pipelineRouter,

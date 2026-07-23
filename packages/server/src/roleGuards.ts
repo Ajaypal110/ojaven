@@ -18,3 +18,17 @@ export function assertStructureRole(role: TeamRole, resource: string) {
     });
   }
 }
+
+/**
+ * Review authority: manager and above. The MIDDLE tier — operators create and
+ * submit, managers+ sign off. This is where manager ≠ operator first earns its
+ * keep (junior writes, senior approves); the tier will recur in later modules.
+ */
+export function assertReviewRole(role: TeamRole, resource: string) {
+  if (role !== "owner" && role !== "admin" && role !== "manager") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Only managers and above can review ${resource}.`,
+    });
+  }
+}

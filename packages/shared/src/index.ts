@@ -11,3 +11,4 @@ export * from "./validation/task";
 export * from "./validation/time";
 export * from "./validation/proposal";
 export * from "./validation/invoice";
+export * from "./validation/content";

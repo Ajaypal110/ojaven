@@ -1,4 +1,4 @@
-import { index, integer, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { id, softDelete, timestamps } from "./_helpers";
 import { contentStatusEnum } from "./_enums";
 import { agencies, users } from "./identity";
@@ -41,7 +41,13 @@ export const contentItems = pgTable(
     contentType: text("content_type").notNull(), // "blog" | "ad" | "social" — kept as text, agency-extensible
     status: contentStatusEnum("status").notNull().default("draft"),
     createdById: text("created_by_id").references(() => users.id, { onDelete: "set null" }),
-    reviewedById: text("reviewed_by_id").references(() => users.id, { onDelete: "set null" }), // set once a client_user approves/rejects
+    // Actor-agnostic review record: today a team member (internal QA, or
+    // transcribing the client's emailed decision); at C1 the portal writes the
+    // SAME fields with the client_user's id — client logins are users rows too,
+    // so the portal adds a door, not a mechanism.
+    reviewedById: text("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }), // a who with no when is half an audit trail
+    reviewNote: text("review_note"), // the LATEST verdict's note (overwritten per review); the running conversation lives on the activity timeline
     ...timestamps,
     ...softDelete,
   },

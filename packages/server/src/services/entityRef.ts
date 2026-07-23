@@ -1,15 +1,17 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq, isNull } from "drizzle-orm";
-import { clientContacts, clients, db, deals } from "@ojaven/db";
+import { clientContacts, clients, contentItems, db, deals } from "@ojaven/db";
 import type { Tx } from "@ojaven/db/transactionClient";
 import type { EntityType } from "@ojaven/shared";
 
 type Dbc = typeof db | Tx;
 
-// A3 supports tags/custom fields on these built, agency-scoped, live-aware
-// entities. The other entityType enum members (task, proposal, invoice,
-// content_item) have no module yet.
-const SUPPORTED = new Set<EntityType>(["client", "client_contact", "deal"]);
+// Built, agency-scoped, live-aware entities that polymorphic features (tags,
+// custom fields, task links, activity timeline) can point at. content_item
+// joined at A8 — which lit up all of those on content for free. The remaining
+// enum members (task, proposal, invoice) stay unsupported until deliberately
+// added.
+const SUPPORTED = new Set<EntityType>(["client", "client_contact", "deal", "content_item"]);
 
 const notAvailable = (entityType: EntityType) =>
   new TRPCError({
@@ -71,8 +73,7 @@ export async function assertEntityLive(
         )
       )
       .limit(1);
-  } else {
-    // deal
+  } else if (entityType === "deal") {
     [row] = await dbc
       .select({ id: deals.id })
       .from(deals)
@@ -82,6 +83,21 @@ export async function assertEntityLive(
           eq(deals.id, entityId),
           eq(deals.agencyId, agencyId),
           isNull(deals.deletedAt),
+          isNull(clients.deletedAt)
+        )
+      )
+      .limit(1);
+  } else {
+    // content_item — same shape: live item, live parent client
+    [row] = await dbc
+      .select({ id: contentItems.id })
+      .from(contentItems)
+      .innerJoin(clients, eq(clients.id, contentItems.clientId))
+      .where(
+        and(
+          eq(contentItems.id, entityId),
+          eq(contentItems.agencyId, agencyId),
+          isNull(contentItems.deletedAt),
           isNull(clients.deletedAt)
         )
       )
