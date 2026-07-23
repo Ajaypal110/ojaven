@@ -157,6 +157,17 @@ describe("ensureMembership audit semantics (noise fix)", () => {
   });
 });
 
+describe("health.limiterStatus (authenticated canary)", () => {
+  it("returns the fail-open canary shape via the full stack", async () => {
+    const { caller } = await fullStackCaller();
+    const status = await caller.health.limiterStatus();
+    expect(typeof status.active).toBe("boolean");
+    expect(typeof status.failuresSinceBoot).toBe("number");
+    expect(status.failuresSinceBoot).toBeGreaterThanOrEqual(0);
+    // lastFailureAt is null until a real fail-open occurs (proven in the live drill).
+  });
+});
+
 describe("sanitizeForAudit / uuidish (units)", () => {
   it("bounds strings, caps depth, filters non-uuids", () => {
     const long = sanitizeForAudit("a".repeat(600)) as string;

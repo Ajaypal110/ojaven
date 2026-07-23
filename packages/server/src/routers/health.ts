@@ -3,7 +3,8 @@ import { eq, sql } from "drizzle-orm";
 import { db, users } from "@ojaven/db";
 import { txDb } from "@ojaven/db/transactionClient";
 import { router } from "../trpc";
-import { publicProcedure } from "../procedures";
+import { protectedProcedure, publicProcedure } from "../procedures";
+import { getLimiterStatus } from "../middleware/rateLimit";
 import { provisionUserRow, tombstoneEmail } from "../services/userProvisioning";
 import type { ClerkGateway } from "../services/clerkGateway";
 
@@ -12,6 +13,13 @@ export const healthRouter = router({
     status: "ok" as const,
     timestamp: Date.now(),
   })),
+
+  /**
+   * The fail-open canary — AUTHENTICATED ONLY, deliberately not on the public
+   * ping: a public "limiter is down" flag is a written invitation timed to the
+   * attack window. Per-instance counter, resets on boot.
+   */
+  limiterStatus: protectedProcedure.query(() => getLimiterStatus()),
 
   /**
    * Probes the Pool/websocket transaction client end-to-end from inside
