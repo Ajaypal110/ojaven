@@ -14,6 +14,7 @@ import { TasksSection } from "./TasksSection";
 import { TimeSection } from "./TimeSection";
 import { ProposalsSection } from "./ProposalsSection";
 import { InvoicesSection } from "./InvoicesSection";
+import { ContentSection } from "./ContentSection";
 import { ActivityTimeline } from "./ActivityTimeline";
 
 export default function ClientDetailPage() {
@@ -198,6 +199,7 @@ export default function ClientDetailPage() {
           <TimeSection clientId={params.id} />
           <ProposalsSection clientId={params.id} />
           <InvoicesSection clientId={params.id} />
+          <ContentSection clientId={params.id} />
           <ActivityTimeline entityType="client" entityId={params.id} />
         </>
       )}
