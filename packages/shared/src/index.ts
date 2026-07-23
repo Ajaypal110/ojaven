@@ -9,3 +9,4 @@ export * from "./validation/settings";
 export * from "./validation/taxonomy";
 export * from "./validation/task";
 export * from "./validation/time";
+export * from "./validation/proposal";

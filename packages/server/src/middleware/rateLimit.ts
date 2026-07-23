@@ -20,12 +20,22 @@ const ratelimit = hasUpstashConfig
     })
   : null;
 
+/**
+ * Rate-limit bucket key. Authenticated: per-user. Unauthenticated (public
+ * endpoints): per-IP, so one abuser can't exhaust a shared "anonymous" bucket
+ * and starve real clients. Every future public surface (portal, booking, review
+ * links) inherits this keying.
+ */
+export function rateLimitIdentifier(ctx: { userId?: string | null; ip?: string | null }): string {
+  return ctx.userId ?? (ctx.ip ? `ip:${ctx.ip}` : "anonymous");
+}
+
 export const rateLimited = middleware(async ({ ctx, next, path }) => {
   if (!ratelimit) {
     return next();
   }
 
-  const identifier = ctx.userId ?? "anonymous";
+  const identifier = rateLimitIdentifier(ctx);
   const { success } = await ratelimit.limit(`${identifier}:${path}`);
 
   if (!success) {
