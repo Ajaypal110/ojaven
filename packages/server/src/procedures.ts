@@ -13,6 +13,17 @@ export const publicProcedure = baseProcedure.use(rateLimited);
 export const protectedProcedure = publicProcedure.use(requireAuth);
 
 /**
+ * Mutations the uniform baseline deliberately does NOT audit.
+ * team.ensureMembership is the layout-effect bootstrap — it fires idempotently
+ * on every product page load, and auditing the no-op would make it the
+ * highest-volume row in every agency's log while carrying zero information
+ * (seen in live audit review). The INTERESTING outcomes — a membership
+ * actually created or revived — are audited semantically inside the service
+ * as team.member_joined / team.member_rejoined.
+ */
+const AUDIT_EXEMPT = new Set(["team.ensureMembership"]);
+
+/**
  * Every agencyProcedure MUTATION (teamProcedure inherits this too) is audited
  * automatically — the uniform baseline nobody can forget, chosen over ~30
  * explicit service call sites (the forgotten-lock failure class). Baseline
@@ -40,7 +51,7 @@ export const agencyProcedure = protectedProcedure
       ok: result.ok,
     });
 
-    if (result.ok) {
+    if (result.ok && !AUDIT_EXEMPT.has(path)) {
       const rawInput = await getRawInput().catch(() => undefined);
       const input = rawInput as Record<string, unknown> | undefined;
       const output = (result as { data?: unknown }).data as Record<string, unknown> | undefined;

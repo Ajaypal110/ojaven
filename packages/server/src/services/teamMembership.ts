@@ -4,6 +4,7 @@ import { db, invitations, teamMembers, users, teamMemberRoleEnum } from "@ojaven
 import { txDb, type Tx } from "@ojaven/db/transactionClient";
 import type { ClerkGateway } from "./clerkGateway";
 import { lockAgency } from "./agencyLock";
+import { writeAudit } from "./audit";
 
 export type TeamMemberRole = (typeof teamMemberRoleEnum.enumValues)[number];
 
@@ -128,7 +129,7 @@ export async function ensureMembership(params: {
   clerkOrgRole?: string | null;
   clerkMembershipId?: string | null;
 }) {
-  return txDb.transaction(async (tx) => {
+  const result = await txDb.transaction(async (tx) => {
     await lockAgency(tx, params.agencyId);
 
     const [existing] = await tx
@@ -194,7 +195,7 @@ export async function ensureMembership(params: {
         })
         .where(eq(teamMembers.id, existing.id))
         .returning();
-      return { member: revived ?? null, created: false };
+      return { member: revived ?? null, created: false, revived: revived != null };
     }
 
     const role = await resolveRole(tx, params);
@@ -211,6 +212,34 @@ export async function ensureMembership(params: {
 
     return { member: inserted, created: true };
   });
+
+  // Post-commit, and ONLY for the interesting outcomes. This mutation fires
+  // idempotently on every product page load (the layout-effect bootstrap), so
+  // it's exempted from the baseline audit middleware — live-data review showed
+  // the no-op on track to be the highest-volume row in every agency's log
+  // while carrying zero information. Someone actually joining or rejoining IS
+  // worth a row, written semantically here.
+  if (result.member) {
+    if (result.created) {
+      await writeAudit({
+        agencyId: params.agencyId,
+        actorUserId: params.userId,
+        action: "team.member_joined",
+        entityId: result.member.id,
+        changes: { role: result.member.role },
+      });
+    } else if ("revived" in result && result.revived) {
+      await writeAudit({
+        agencyId: params.agencyId,
+        actorUserId: params.userId,
+        action: "team.member_rejoined",
+        entityId: result.member.id,
+        changes: { role: result.member.role },
+      });
+    }
+  }
+
+  return result;
 }
 
 export async function listMembers(agencyId: string) {

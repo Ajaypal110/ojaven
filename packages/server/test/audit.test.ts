@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { agencySettings, auditLogs, db, notifications } from "@ojaven/db";
+import { agencySettings, auditLogs, db, invitations, notifications, teamMembers } from "@ojaven/db";
 import { logger } from "@ojaven/shared";
 import { createCallerFactory } from "../src/trpc";
 import { appRouter } from "../src/routers/_app";
@@ -121,6 +121,39 @@ describe("audit middleware (full procedure stack)", () => {
     expect(rows[0]?.entityId).toBe(proposal!.id);
     expect((rows[0]?.changes as { signedByName: string }).signedByName).toBe("Jo Client");
     expect(JSON.stringify(rows[0]?.changes)).not.toContain(sent.publicToken!); // token never stored
+  });
+});
+
+describe("ensureMembership audit semantics (noise fix)", () => {
+  it("audits joins and rejoins semantically — never the idempotent no-op", async () => {
+    const { agency, user, caller } = await fullStackCaller();
+
+    // First call creates (first member -> owner) -> ONE semantic row, and the
+    // baseline path row must NOT exist (exempted).
+    await caller.team.ensureMembership();
+    expect(await auditRows(agency.id, "team.member_joined")).toHaveLength(1);
+    expect(await auditRows(agency.id, "team.ensureMembership")).toHaveLength(0);
+
+    // Idempotent no-op (the every-page-load case) -> nothing new.
+    await caller.team.ensureMembership();
+    expect(await auditRows(agency.id, "team.member_joined")).toHaveLength(1);
+
+    // Revival with evidence (pending invitation) -> a rejoin row.
+    const [memberRow] = await db
+      .select()
+      .from(teamMembers)
+      .where(and(eq(teamMembers.agencyId, agency.id), eq(teamMembers.userId, user.id)));
+    await db.update(teamMembers).set({ deletedAt: new Date() }).where(eq(teamMembers.id, memberRow!.id));
+    await db.insert(invitations).values({
+      agencyId: agency.id,
+      email: user.email,
+      role: "manager",
+      expiresAt: new Date(Date.now() + 86400000),
+    });
+    await caller.team.ensureMembership();
+    const rejoined = await auditRows(agency.id, "team.member_rejoined");
+    expect(rejoined).toHaveLength(1);
+    expect((rejoined[0]?.changes as { role: string }).role).toBe("manager"); // the invitation's role
   });
 });
 
