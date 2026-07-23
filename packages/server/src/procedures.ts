@@ -6,29 +6,57 @@ import { requireAuth } from "./middleware/auth";
 import { requireAgency } from "./middleware/tenant";
 import { rateLimited } from "./middleware/rateLimit";
 import { logMutationEvent } from "./middleware/logging";
+import { uuidish, writeAudit } from "./services/audit";
 
 export const publicProcedure = baseProcedure.use(rateLimited);
 
 export const protectedProcedure = publicProcedure.use(requireAuth);
 
-export const agencyProcedure = protectedProcedure.use(requireAgency).use(async ({ ctx, next, path, type }) => {
-  if (type !== "mutation") {
-    return next();
-  }
+/**
+ * Every agencyProcedure MUTATION (teamProcedure inherits this too) is audited
+ * automatically — the uniform baseline nobody can forget, chosen over ~30
+ * explicit service call sites (the forgotten-lock failure class). Baseline
+ * fidelity, deliberately honest: action = procedure path, changes = truncated
+ * input snapshot, entityId best-effort (input.id, else the returned row's id
+ * on creates), entityType null. Semantic enrichment (before/after diffs,
+ * entity typing) comes via services/audit.writeAudit in the glue pass.
+ * Success-only: failed mutations changed nothing (pino has them already).
+ */
+export const agencyProcedure = protectedProcedure
+  .use(requireAgency)
+  .use(async ({ ctx, next, path, type, getRawInput }) => {
+    if (type !== "mutation") {
+      return next();
+    }
 
-  const start = Date.now();
-  const result = await next();
+    const start = Date.now();
+    const result = await next();
 
-  logMutationEvent(ctx.logger, {
-    agencyId: ctx.agencyId,
-    userId: ctx.userId,
-    procedure: path,
-    durationMs: Date.now() - start,
-    ok: result.ok,
+    logMutationEvent(ctx.logger, {
+      agencyId: ctx.agencyId,
+      userId: ctx.userId,
+      procedure: path,
+      durationMs: Date.now() - start,
+      ok: result.ok,
+    });
+
+    if (result.ok) {
+      const rawInput = await getRawInput().catch(() => undefined);
+      const input = rawInput as Record<string, unknown> | undefined;
+      const output = (result as { data?: unknown }).data as Record<string, unknown> | undefined;
+      await writeAudit({
+        agencyId: ctx.agencyId,
+        actorUserId: ctx.userId,
+        action: path,
+        entityId: uuidish(input?.id) ?? uuidish(output?.id),
+        // Raw here — writeAudit sanitizes exactly once (double-sanitizing
+        // truncates the first pass's truncation marker; a test caught it).
+        changes: input == null ? null : { input },
+      });
+    }
+
+    return result;
   });
-
-  return result;
-});
 
 /**
  * agencyProcedure + a resolved team_members row: ctx.teamMember carries

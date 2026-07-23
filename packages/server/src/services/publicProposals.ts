@@ -4,6 +4,7 @@ import { agencies, agencySettings, db, proposalLineItems, proposals } from "@oja
 import { txDb } from "@ojaven/db/transactionClient";
 import type { RespondToProposalInput } from "@ojaven/shared";
 import { lockKey } from "./agencyLock";
+import { writeAudit } from "./audit";
 
 const notFound = () => new TRPCError({ code: "NOT_FOUND", message: "Proposal not found." });
 
@@ -16,7 +17,7 @@ const notFound = () => new TRPCError({ code: "NOT_FOUND", message: "Proposal not
  */
 async function resolveByToken(token: string) {
   const [row] = await db
-    .select({ id: proposals.id, status: proposals.status })
+    .select({ id: proposals.id, status: proposals.status, agencyId: proposals.agencyId })
     .from(proposals)
     .where(
       and(
@@ -100,7 +101,7 @@ export async function markProposalViewed(token: string) {
 export async function respondToProposal(input: RespondToProposalInput) {
   const found = await resolveByToken(input.token); // NOT_FOUND for draft/deleted/wrong
 
-  return txDb.transaction(async (tx) => {
+  const updated = await txDb.transaction(async (tx) => {
     await lockKey(tx, "proposal-respond", found.id);
 
     const [current] = await tx
@@ -131,4 +132,18 @@ export async function respondToProposal(input: RespondToProposalInput) {
       });
     return updated;
   });
+
+  // Post-commit (a rollback must never leave an audit of a non-event), and the
+  // one business-critical UNAUTHENTICATED action the middleware baseline can't
+  // see — audited explicitly. Anonymous actor; the token is never written.
+  await writeAudit({
+    agencyId: found.agencyId,
+    actorUserId: null,
+    action: input.decision === "accept" ? "proposal.accepted" : "proposal.declined",
+    entityType: "proposal",
+    entityId: found.id,
+    changes: input.signedByName ? { signedByName: input.signedByName } : null,
+  });
+
+  return updated;
 }
