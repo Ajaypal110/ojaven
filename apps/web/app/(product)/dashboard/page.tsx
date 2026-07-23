@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc/client";
  */
 export default function DashboardPage() {
   const ping = trpc.health.ping.useQuery();
+  const unread = trpc.notifications.unreadCount.useQuery();
 
   return (
     <div style={{ padding: "2rem", fontFamily: "monospace" }}>
@@ -21,6 +22,10 @@ export default function DashboardPage() {
         <Link href="/pipeline">Pipeline &rarr;</Link>
         {"  "}
         <Link href="/tasks">Tasks &rarr;</Link>
+        {"  "}
+        <Link href="/notifications">
+          Notifications{(unread.data?.count ?? 0) > 0 ? ` (${unread.data!.count})` : ""} &rarr;
+        </Link>
         {"  "}
         <Link href="/settings">Settings &rarr;</Link>
       </p>
