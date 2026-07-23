@@ -73,17 +73,22 @@ full-stack test harness (`createCallerFactory`).
 
 ## Build order
 
-**Phase B — one external each (unchanged):**
+**Phase B — one external each. REORDERED 2026-07-23** (recorded decision, not
+drift): B2/R2 requires a payment card on file even at free tier and is blocked
+on card availability; nothing gates on it. B7 pulled forward — design-only,
+zero cost, and the one item that can force changes to code already built, so
+earlier is strictly better. Then B6/B3 (genuine free tiers); B2 resumes when
+the card situation resolves.
 
-| # | Pass |
-|---|---|
-| B1 | Upstash → rate limiting live |
-| B2 | R2 → upload service → 11b attachments |
-| B3 | Resend → transactional foundation + recovery-warning email → 6a |
-| B4 | Trigger.dev → 6b sequences + **automations engine** (the glue substrate) |
-| B5 | Stripe → 13c payments, 12b payment links |
-| B6 | Sentry + PostHog |
-| **B7** | **SaaS-mode tenancy ADR (design only, NO code)** — see N-E. Must land **before C1**: the portal's auth + subdomain routing are the first surfaces that would bake in single-level tenancy. Retrofitting a tenancy level is far worse than designing for it. Output: an architecture decision record, reviewed like any design pass. |
+| # | Pass | Status |
+|---|---|---|
+| B1 | Upstash → rate limiting live | **DONE 2026-07-23** (tiers, noisy fail-open, canary — all live-verified incl. outage drill) |
+| **B7** | **SaaS-mode tenancy ADR (design only, NO code)** — see N-E and `docs/ADR-001-saas-mode-tenancy.md`. Must land **before C1**: the portal's auth + subdomain routing are the first surfaces that would bake in single-level tenancy. Retrofitting a tenancy level is far worse than designing for it. | **NEXT** |
+| B6 | Sentry + PostHog (free tiers, no card) | after B7 |
+| B3 | Resend → transactional foundation + recovery-warning email → 6a (verify free-tier card requirement first) | after B7 |
+| B4 | Trigger.dev → 6b sequences + **automations engine** (the glue substrate) | |
+| B2 | R2 → upload service → 11b attachments | **DEFERRED — card requirement**; resumes when unblocked |
+| B5 | Stripe → 13c payments, 12b payment links | |
 
 **Phase C — integrators (as before, now tenancy-aware after B7):**
 
